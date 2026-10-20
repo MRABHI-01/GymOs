@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
 
 const emptyForm = { exercise: '', sets: '', reps: '', weight: '' }
 
@@ -7,48 +8,66 @@ function formatDate(iso) {
 }
 
 function Workout() {
-  // 1. All logged workouts (loaded from the browser on first render)
-  const [workouts, setWorkouts] = useState(() => {
-    const saved = localStorage.getItem('gymos-workouts')
-    return saved ? JSON.parse(saved) : []
-  })
-
-  // 2. What the user is typing in the form right now
+  const [workouts, setWorkouts] = useState([])
   const [form, setForm] = useState(emptyForm)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
-  // 3. Every time workouts change, save them to the browser
+  // Load this user's workouts once, when the page opens
   useEffect(() => {
-    localStorage.setItem('gymos-workouts', JSON.stringify(workouts))
-  }, [workouts])
+    async function loadWorkouts() {
+      const { data, error } = await supabase
+        .from('workouts')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (error) setError(error.message)
+      else setWorkouts(data)
+      setLoading(false)
+    }
+    loadWorkouts()
+  }, [])
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value })
   }
 
-  function handleSubmit(e) {
-    e.preventDefault() // stop the page from reloading
+  async function handleSubmit(e) {
+    e.preventDefault()
     if (!form.exercise.trim()) return
+    setSaving(true)
+    setError('')
 
-    const newWorkout = {
-      id: Date.now().toString(),
-      exercise: form.exercise.trim(),
-      sets: Number(form.sets),
-      reps: Number(form.reps),
-      weight: Number(form.weight),
-      date: new Date().toISOString(),
+    const { data, error } = await supabase
+      .from('workouts')
+      .insert({
+        exercise: form.exercise.trim(),
+        sets: Number(form.sets),
+        reps: Number(form.reps),
+        weight: Number(form.weight),
+      })
+      .select()
+      .single()
+
+    setSaving(false)
+    if (error) {
+      setError(error.message)
+      return
     }
-
-    setWorkouts([newWorkout, ...workouts]) // newest on top
-    setForm(emptyForm) // clear the form
+    setWorkouts([data, ...workouts])
+    setForm(emptyForm)
   }
 
-  function handleDelete(id) {
-    setWorkouts(workouts.filter((w) => w.id !== id))
+  async function handleDelete(id) {
+    const { error } = await supabase.from('workouts').delete().eq('id', id)
+    if (error) setError(error.message)
+    else setWorkouts(workouts.filter((w) => w.id !== id))
   }
 
   // Today's stats
   const today = new Date().toDateString()
-  const todays = workouts.filter((w) => new Date(w.date).toDateString() === today)
+  const todays = workouts.filter((w) => new Date(w.created_at).toDateString() === today)
   const todayVolume = todays.reduce((sum, w) => sum + w.sets * w.reps * w.weight, 0)
 
   const inputClass =
@@ -61,28 +80,23 @@ function Workout() {
         Today: {todays.length} exercises · {todayVolume.toLocaleString()} kg volume
       </p>
 
-      {/* Form */}
       <form onSubmit={handleSubmit} className="bg-gray-900/50 border border-gray-800 rounded-xl p-4 mb-8 space-y-3">
-        <input
-          name="exercise"
-          placeholder="Exercise (e.g. Bench Press)"
-          value={form.exercise}
-          onChange={handleChange}
-          className={inputClass}
-          required
-        />
+        <input name="exercise" placeholder="Exercise (e.g. Bench Press)" value={form.exercise} onChange={handleChange} className={inputClass} required />
         <div className="grid grid-cols-3 gap-3">
           <input name="sets" type="number" min="1" placeholder="Sets" value={form.sets} onChange={handleChange} className={inputClass} required />
           <input name="reps" type="number" min="1" placeholder="Reps" value={form.reps} onChange={handleChange} className={inputClass} required />
           <input name="weight" type="number" min="0" step="0.5" placeholder="Kg" value={form.weight} onChange={handleChange} className={inputClass} required />
         </div>
-        <button className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-semibold rounded-lg py-2">
-          + Add Exercise
+        <button disabled={saving} className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-black font-semibold rounded-lg py-2">
+          {saving ? 'Saving...' : '+ Add Exercise'}
         </button>
       </form>
 
-      {/* List */}
-      {workouts.length === 0 ? (
+      {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+
+      {loading ? (
+        <p className="text-gray-500 text-center">Loading workouts...</p>
+      ) : workouts.length === 0 ? (
         <p className="text-gray-500 text-center">No workouts yet. Log your first one above 💪</p>
       ) : (
         <ul className="space-y-2">
@@ -91,7 +105,7 @@ function Workout() {
               <div>
                 <p className="font-semibold">{w.exercise}</p>
                 <p className="text-sm text-gray-400">
-                  {w.sets} × {w.reps} @ {w.weight} kg · {formatDate(w.date)}
+                  {w.sets} × {w.reps} @ {w.weight} kg · {formatDate(w.created_at)}
                 </p>
               </div>
               <button onClick={() => handleDelete(w.id)} className="text-gray-500 hover:text-red-400 text-lg">
