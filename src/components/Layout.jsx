@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 
 const navItems = [
   { to: '/', label: 'Dashboard', short: 'Home', icon: '🏠' },
@@ -30,8 +31,20 @@ function Layout() {
             {item.label}
           </NavLink>
         ))}
+        <button
+  onClick={() => supabase.auth.signOut()}
+  className="mt-auto flex items-center gap-3 px-3 py-2 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400"
+>
+  <span>🚪</span>
+  Log out
+</button>
       </aside>
-
+<header className="md:hidden flex items-center justify-between px-6 py-4 border-b border-gray-800">
+  <h1 className="text-xl font-bold">GymOS 💪</h1>
+  <button onClick={() => supabase.auth.signOut()} className="text-sm text-gray-400 hover:text-red-400">
+    Log out
+  </button>
+</header>
       {/* Page content goes here */}
       <main className="flex-1 p-6 pb-24 md:pb-6">
         <Outlet />
