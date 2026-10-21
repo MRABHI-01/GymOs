@@ -27,3 +27,17 @@ export function formatDayLabel(date) {
   if (isSameDay(date, addDays(new Date(), -1))) return 'Yesterday'
   return new Date(date).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
 }
+
+export function startOfMonth(date) {
+  const d = new Date(date)
+  return new Date(d.getFullYear(), d.getMonth(), 1)
+}
+
+export function addMonths(date, months) {
+  const d = new Date(date)
+  return new Date(d.getFullYear(), d.getMonth() + months, 1)
+}
+
+export function formatMonthLabel(date) {
+  return new Date(date).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+}
