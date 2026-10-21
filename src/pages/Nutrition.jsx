@@ -1,3 +1,5 @@
+   import DateSwitcher from '../components/DateSwitcher'
+   import { startOfDay, addDays, formatDayLabel } from '../lib/dates'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import ProgressBar from '../components/ProgressBar'
@@ -7,17 +9,6 @@ const TARGETS = { calories: 2500, protein: 150, carbs: 300, fat: 70 }
 const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack']
 const emptyForm = { name: '', meal_type: 'breakfast', calories: '', protein: '', carbs: '', fat: '' }
 
-function startOfDay(date) {
-  const d = new Date(date)
-  d.setHours(0, 0, 0, 0)
-  return d
-}
-
-function addDays(date, days) {
-  const d = new Date(date)
-  d.setDate(d.getDate() + days)
-  return d
-}
 
 function Nutrition() {
   const [date, setDate] = useState(startOfDay(new Date()))
@@ -92,9 +83,7 @@ function Nutrition() {
   // Totals for the day
   const total = (key) => meals.reduce((sum, m) => sum + Number(m[key]), 0)
 
-  const dateLabel = isToday
-    ? 'Today'
-    : date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+     const dateLabel = formatDayLabel(date)
 
   const inputClass =
     'w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 focus:outline-none focus:border-emerald-500'
@@ -104,11 +93,7 @@ function Nutrition() {
       {/* Header with date switcher */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Nutrition</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setDate(addDays(date, -1))} className="px-3 py-1 rounded-lg bg-gray-900 hover:bg-gray-800">‹</button>
-          <span className="w-28 text-center text-sm">{dateLabel}</span>
-          <button onClick={() => setDate(addDays(date, 1))} disabled={isToday} className="px-3 py-1 rounded-lg bg-gray-900 hover:bg-gray-800 disabled:opacity-30">›</button>
-        </div>
+           <DateSwitcher date={date} onChange={setDate} />
       </div>
 
       {/* Daily progress */}
